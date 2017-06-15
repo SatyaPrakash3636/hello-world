@@ -1,0 +1,116 @@
+strInputFile = "C:\Concepts\MachineList.txt"
+strOutputFile = "C:\Concepts\CDriveSpace.csv"
+strLocalAdmin = "localadmin"
+strLocalPassword = "password"
+
+Set objFSO = CreateObject("Scripting.FileSystemObject")
+Const intForReading = 1
+Const WMITimeOutInSeconds = 10
+Const wbemFlagReturnImmediately = &h10
+Const wbemFlagForwardOnly = &h20
+
+Set objInputFile = objFSO.OpenTextFile(strInputFile, intForReading, False)
+Set objOutputFile = objFSO.CreateTextFile(strOutputFile, True)
+objOutputFile.WriteLine """Computer"",""C Drive Free Space (MB)"""
+
+While Not objInputFile.AtEndOfStream
+   strComputer = objInputFile.ReadLine
+   If Ping(strComputer) = True Then
+      strReturn = TestWMIConnection(strComputer, WMITimeOutInSeconds)
+
+      If strReturn = "success" Then
+      
+		Set objWbemLocator = CreateObject("WbemScripting.SWbemLocator")      
+		Set objWMIService = objwbemLocator.ConnectServer(strComputer, "\root\cimv2", strComputer & "\" & strLocalAdmin, strLocalPassword)
+		objWMIService.Security_.authenticationLevel = 6
+
+
+         'Set objWMIService = GetObject("winmgmts:{impersonationLevel=impersonate}!\\" & strComputer & "\root\cimv2")
+         ' The wbemFlagReturnImmediately flag is the default ExecQuery behavior and is semi-synchronous. The important optimization is the addition of the wbemFlagForwardOnly flag.
+         ' Combining wbemFlagReturnImmediately with wbemFlagForwardOnly results in a forward-only enumerator. A forward-only enumerator performs much faster than the default enumerator,
+         ' because WMI doesn't maintain references to objects in the SWbemObjectSet.
+         ' Source: http://msdn.microsoft.com/en-us/library/ms974547.aspx
+         Set colItems = objWMIService.ExecQuery("SELECT FreeSpace FROM Win32_LogicalDisk WHERE DeviceID = 'C:'", "WQL", wbemFlagReturnImmediately + wbemFlagForwardOnly)
+         For Each objItem In colItems
+            dblFreeSpace = Round(objItem.FreeSpace / 1024 / 1024, 3)
+         Next
+         objOutputFile.WriteLine """" & strComputer & """,""" & dblFreeSpace & """"
+
+      ElseIf strReturn = "failed" Then
+         objOutputFile.WriteLine """" & strComputer & """,""WMI ERROR"""
+
+      Else
+         objOutputFile.WriteLine """" & strComputer & """,""WMI TIME OUT"""
+
+      End If
+
+   Else
+      objOutputFile.WriteLine """" & strComputer & """,""OFFLINE"""
+
+   End If
+Wend
+
+objInputFile.Close
+objOutputFile.Close
+WScript.Echo "Script complete. Please see " & strOutputFile
+
+Function Ping(strComputer)
+   Dim objShell, boolCode
+   Set objShell = CreateObject("WScript.Shell")
+   boolCode = objShell.Run("Ping -n 1 -w 300 " & strComputer, 0, True)
+   If boolCode = 0 Then
+      Ping = True
+   Else
+      Ping = False
+   End If
+End Function
+
+Function TestWMIConnection(strComputer, intTimeOutInSeconds)
+   ' Function written by Rob Sampson - 12 Jan 2011
+   ' Experts-Exchange volunteer: http://www.experts-exchange.com/M_3820065.html
+   ' Return strings from this function are in lower case, and consist of:
+   ' "success": WMI Connection successful
+   ' "failed": WMI Connection failed
+   ' "time out": WMI Connection attempt timed out
+
+   Set objFSO = CreateObject("Scripting.FileSystemObject")
+   strTempScript = Replace(WScript.ScriptFullName, WScript.ScriptName, "") & "TempWMITestToBeDeleted.vbs"
+
+   Set objTempFile = objFSO.CreateTextFile(strTempScript, True)
+   objTempFile.WriteLine "On Error Resume Next"
+   objTempFile.WriteLine "Set objWbemLocator = CreateObject(""WbemScripting.SWbemLocator"")"
+   objTempFile.WriteLine "Set objWMIService = objwbemLocator.ConnectServer(""" & strComputer & """, ""\root\cimv2"", """ & strComputer & "\" & strLocalAdmin & """, """ & strLocalPassword & """)"
+   objTempFile.WriteLine "objWMIService.Security_.authenticationLevel = 6"
+   'objTempFile.WriteLine "Set objWMIService = GetObject(""winmgmts:{impersonationLevel=impersonate}!\\" & strComputer & "\root\cimv2"")"
+   objTempFile.WriteLine "If Err.Number = 0 Then"
+   objTempFile.WriteLine vbTab & "WScript.StdOut.Write ""success"""
+   objTempFile.WriteLine "Else"
+   objTempFile.WriteLine vbTab & "WScript.StdOut.Write ""failed"""
+   objTempFile.WriteLine "End If"
+   objTempFile.Close
+
+   Set objShell = CreateObject("WScript.Shell")
+   Set objExec = objShell.Exec("wscript " & objFSO.GetFile(strTempScript).ShortPath)
+   intSeconds = 0
+   While objExec.Status = 0 And intSeconds <= intTimeOutInSeconds
+      WScript.Sleep 1000
+      intSeconds = intSeconds + 1
+   Wend
+   If objExec.Status = 1 Then
+      strReturn = objExec.StdOut.ReadAll
+   Else
+      On Error Resume Next
+      objExec.Terminate
+      Err.Clear
+      On Error GoTo 0
+      strReturn = "time out"
+   End If
+   objFSO.DeleteFile strTempScript, True
+
+   TestWMIConnection = LCase(strReturn)
+End Function
+
+
+
+
+https://www.experts-exchange.com/articles/4379/VBScript-WMI-Tutorial-Retrieve-Free-Space-On-C-Drive-From-Multiple-Computers.html
