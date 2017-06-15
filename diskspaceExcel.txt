@@ -1,0 +1,107 @@
+Sub diskspace()
+ Dim rngArea As Range
+  
+    Dim Drv As Drive
+    Dim fs As New FileSystemObject
+    Dim Letter As String
+    Dim Total As Variant
+    Dim Free As Variant
+    Dim FreePercent As Variant
+    Dim Used As Variant
+    Dim i As Integer
+
+Application.ScreenUpdating = True
+
+For Each rngArea In Selection
+With rngArea
+
+strcomputer = rngArea.Value
+
+If Ping(strcomputer) = True Then
+
+ rngArea.Offset(0, 1).Value = Now()
+ rngArea.Offset(0, 2).Interior.Color = RGB(0, 255, 0)
+ rngArea.Offset(0, 2).Value = "ONLINE"
+ 
+     On Error Resume Next
+    
+    j = 3
+    For Each Drv In fs.drives
+        If Drv.IsReady Then
+            Letter = Drv.DriveLetter
+            Total = Drv.TotalSize
+            TotalGB = Round(Total / 1073741824, 2)
+            Free = Drv.FreeSpace
+            FreeGB = Round(Free / 1073741824, 2)
+            UsedGB = Round(TotalGB - FreeGB, 2)
+            
+            FreePercent = Round((FreeGB / TotalGB) * 100, 2)
+            UsedPercent = Round((UsedGB / TotalGB) * 100, 2)
+            
+            'rngArea.Offset(-1, j).Value = Letter & " Drive"
+            'Cells(9, j).Value = Letter & " Drive"
+            'Cells(10, j).Value = TotalGB
+            'Cells(11, j).Value = UsedGB
+            'Cells(12, j).Value = FreeGB
+            'Cells(13, j).Value = FreePercent
+            
+            If UsedPercent >= 70 Then
+            rngArea.Offset(0, j).Value = Letter & " Drive Used % = " & UsedPercent
+            rngArea.Offset(0, j).Interior.Color = RGB(255, 0, 0)
+
+            Else
+            
+            rngArea.Offset(0, j).Value = Letter & " Drive Used % = " & UsedPercent
+            rngArea.Offset(0, j).Interior.Color = RGB(0, 255, 0)
+            
+            End If
+            
+            j = j + 1
+            
+        End If
+    Next Drv
+
+ 
+ Else
+  rngArea.Offset(0, 1).Value = Now()
+  rngArea.Offset(0, 2).Interior.Color = RGB(255, 0, 0)
+  rngArea.Offset(0, 2).Value = "OFFLINE"
+
+
+  End If
+  
+  
+
+
+End With
+
+Next rngArea
+
+MsgBox "Script Completed"
+
+End Sub
+
+
+Function Ping(strcomputer)
+
+Dim objshell, boolcode
+
+Set objshell = CreateObject("wscript.shell")
+
+boolcode = objshell.Run("ping -n 2 -w 1000 " & strcomputer, 0, True)
+
+If boolcode = 0 Then
+
+Ping = True
+
+Else
+
+Ping = False
+
+End If
+
+End Function
+
+
+
+
