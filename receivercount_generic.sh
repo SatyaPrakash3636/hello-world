@@ -2,6 +2,9 @@
 
 EMS_BIN=/home/tibadmin/ems/bin
 SCRIPT_DIR=`pwd`
+## data.list should contain fields seperated by "|". 1st and 2nd field for EMS FT instance(if there is only one instance then 2nd field should contain space)
+## 3rd field is for ems user and 4th filed for ems password
+## from 5th field queue names will be added
 DATA_FILE=$SCRIPT_DIR/data.lst
 
 ######################################################### HTML START ########################################################
