@@ -1,0 +1,2 @@
+curl -X POST -u admin:112b489fefeb7e23124ba4a5a48a526558 http://079326a5.ngrok.io/job/script/build?token=123456
+http://admin:112b489fefeb7e23124ba4a5a48a526558@079326a5.ngrok.io/job/script/build?token=123456
